@@ -144,8 +144,8 @@ def main():
                             if content in change_content_list:
                                 if content in extensions_list:
                                     # 若是extensions的字段，则筛选内容进行修改即可,content type2, length 2,所以内容从4开始，长度也要减4
-                                    print(content, starter, length, tcp.data[starter+4:starter + length])
-                                    payload_arr[starter+4:starter + length] = [0 for i in range(length-4)]
+                                    print(content, starter, length, tcp.data[starter:starter + length])
+                                    payload_arr[starter:starter + length] = [0 for i in range(length)]
                                 else:
                                     print(content, starter, length, tcp.data[starter:starter+length])
                                     # 修改payload, bytesarray可以替换，tcp.data
@@ -162,5 +162,50 @@ def main():
     print("baidu:{},qq:{},mail:{}".format(baidu_count, qq_count, mail_count))
 
 
+def extract_L7():
+    TOTAL_SIZE = 784
+
+    srcbasepath = r"D:\sharing_F\test_data\modified"
+    dstbasepath = r"D:\sharing_F\test_data\L7"
+    if not os.path.exists(dstbasepath):
+        os.mkdir(dstbasepath)
+
+    qq_count = 0
+    baidu_count = 0
+    mail_count = 0
+    src_pcap_files = show_files(srcbasepath, [])
+
+    for oldfilepath in src_pcap_files:
+        newfilename = os.path.split(oldfilepath)[1]
+        newfilepath = os.path.join(dstbasepath, 'L7_'+newfilename)
+        print(oldfilepath)
+        if "baidu" in oldfilepath:
+            baidu_count += 1
+        elif "mail" in oldfilepath:
+            mail_count += 1
+        else:
+            qq_count += 1
+
+        cumulative_payload_length = TOTAL_SIZE
+
+        newL7 = open(newfilepath, "wb")
+        oldfile = open(oldfilepath, 'rb')
+        packets = dpkt.pcap.Reader(oldfile)
+        for ts, buf in packets:
+            eth = dpkt.ethernet.Ethernet(buf)
+            ip = eth.data
+            tcp = ip.data
+            payload_arr = bytearray(tcp.data)
+            starter = 0
+            # 当payload大于0的时候，
+            if len(tcp.data) in range(cumulative_payload_length):
+                newL7.write(tcp.data)
+                cumulative_payload_length -= len(tcp.data)
+            else:
+                newL7.write(tcp.data[:cumulative_payload_length])
+                break
+
+
 if __name__ == '__main__':
-    main()
+    # main()
+    extract_L7()
