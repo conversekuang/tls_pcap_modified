@@ -17,7 +17,7 @@ TOTAL_SIZE = 784
 
 
 def load_parse_file():
-    parse_file = r"D:\sharing_F\test_data\feature_idx"
+    parse_file = r"D:\sharing_F\test_data\feature_idx-1"
     datasets = json.load(open(parse_file))
     # 将原始的数组Byte类型，转换成int类型
     changed_type_dataset = []
@@ -49,7 +49,7 @@ def main():
         "qq": {}
     }
 
-    srcbasepath = r"D:\sharing_F\test_data\test"
+    srcbasepath = r"D:\sharing_F\test_data\non-vpn"
     src_pcap_files = show_files(srcbasepath, [])
     qq_count = 0
     baidu_count = 0
@@ -98,7 +98,7 @@ def main():
                 result_dict[index_type][content_type] += coefficiency
 
     print(result_dict)
-    json.dump(result_dict, open("res.json", "w"))
+    json.dump(result_dict, open("20210106.json", "w"))
     print("baidu:{},qq:{},mail:{}, total_contents:{}".format(baidu_count, qq_count, mail_count, len(record_logs)))
 
 

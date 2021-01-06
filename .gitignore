@@ -1,0 +1,6 @@
+*.json
+.idea/
+.__pycache__/
+.parse_tls/__pycache__/
+.scripts/__pycache__/
+

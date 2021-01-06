@@ -207,5 +207,5 @@ def extract_L7():
 
 
 if __name__ == '__main__':
-    # main()
-    extract_L7()
+    main()
+    # extract_L7()
