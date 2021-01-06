@@ -93,9 +93,9 @@ def main():
     TOTAL_SIZE = 784
 
     change_content_list = json.load(open("feature_set.json"))
-    extensions_list = ['server key_sharing', 'client server_name', 'server renegotiation_info', 'client supported_versions', 'client supported_groups', 'client SessionTicket_TLS', "client extended_master_secret"]
+    extensions_list = ['server key_sharing', 'client server_name', 'server renegotiation_info', 'client supported_groups', 'client SessionTicket_TLS', "client extended_master_secret"]
 
-    srcbasepath = r"D:\sharing_F\test_data\test"
+    srcbasepath = r"D:\sharing_F\test_data\non-vpn"
     dstbasepath = r"D:\sharing_F\test_data\modified"
     if not os.path.exists(dstbasepath):
         os.mkdir(dstbasepath)
@@ -106,7 +106,6 @@ def main():
     qq_count = 0
     baidu_count = 0
     mail_count = 0
-    total_dict = load_parse_file()
     src_pcap_files = show_files(srcbasepath, [])
 
     for oldfilepath in src_pcap_files:
@@ -114,52 +113,44 @@ def main():
         newfilepath = os.path.join(dstbasepath, 'modified_'+newfilename)
         print(oldfilepath)
         if "baidu" in oldfilepath:
-            index_arr = total_dict["baidu"]
             baidu_count += 1
         elif "mail" in oldfilepath:
-            index_arr = total_dict["mail"]
             mail_count += 1
         else:
-            index_arr = total_dict["qq"]
             qq_count += 1
 
-        print(sorted(index_arr.keys()))
         newfile = open(newfilepath, "wb")
         writer = dpkt.pcap.Writer(newfile)
         oldfile = open(oldfilepath, 'rb')
         packets = dpkt.pcap.Reader(oldfile)
 
         cumulative_payload_length = 0
-        number_of_caculate_indexes = 0
-        mark_the_start_payload = [0]
 
         for ts, buf in packets:
             eth = dpkt.ethernet.Ethernet(buf)
             ip = eth.data
             tcp = ip.data
             payload_arr = bytearray(tcp.data)
+            starter = 0
             # 当payload大于0的时候，
-            if len(tcp.data) > 0 and TOTAL_SIZE > cumulative_payload_length and number_of_caculate_indexes < len(index_arr.keys()):  #
-                for result in search_index_byte_content(tcp, sorted(index_arr.keys()), number_of_caculate_indexes, mark_the_start_payload):
-                    # 返回该包的content type，该content在该包payload起始的字节，以及content的长度
-                    content_type = result[0]
-                    starter = result[1]
-                    length = result[2]
-                    number_of_caculate_indexes = result[3]
-                    mark_the_start_payload = result[4]
-                    print(result, sorted(index_arr.keys())[number_of_caculate_indexes])
-                    # 若content type在change_content_list中，则进行修改
-                    if content_type in change_content_list:
-                        if content_type in extensions_list:
-                            # 若是extensions的字段，则筛选内容进行修改即可,content type2, length 2,所以内容从4开始，长度也要减4
-                            # print(content_type, starter, length, tcp.data[starter+4:starter + length])
-                            payload_arr[starter+4:starter + length] = [0 for i in range(length-4)]
-                        else:
-                            # print(content_type, starter, length, tcp.data[starter:starter+length])
-                            # 修改payload, bytesarray可以替换，tcp.data
-                            payload_arr[starter:starter+length] = [0 for i in range(length)]
-
-                number_of_caculate_indexes += 1
+            if len(tcp.data) > 0 and TOTAL_SIZE > cumulative_payload_length:  #
+                for records in construct_data(tcp):
+                    # 返回的是每一个packet的数据生成的tcp_payload_list=[[[...,]]]
+                    for record in records:
+                        for packet in record:
+                            content = packet[0]  # content内容
+                            length = packet[1]  # content占据的长度
+                            # 若content type在change_content_list中，则进行修改,starter,是该字段在该包的定位。为了防止跨包定位出现错误
+                            if content in change_content_list:
+                                if content in extensions_list:
+                                    # 若是extensions的字段，则筛选内容进行修改即可,content type2, length 2,所以内容从4开始，长度也要减4
+                                    print(content, starter, length, tcp.data[starter+4:starter + length])
+                                    payload_arr[starter+4:starter + length] = [0 for i in range(length-4)]
+                                else:
+                                    print(content, starter, length, tcp.data[starter:starter+length])
+                                    # 修改payload, bytesarray可以替换，tcp.data
+                                    payload_arr[starter:starter+length] = [0 for i in range(length)]
+                            starter += length
                 cumulative_payload_length += len(tcp.data)
                 # [[[type, length],...,],...,] 多维数组
                 # 看定位的在这个包的，修改该字节对应的字段的数目。然后修改。写入该包。
