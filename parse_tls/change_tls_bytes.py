@@ -130,7 +130,8 @@ def main():
             eth = dpkt.ethernet.Ethernet(buf)
             ip = eth.data
             tcp = ip.data
-            payload_arr = bytearray(tcp.data)
+            # payload_arr = bytearray(tcp.data)  修改payload
+            payload_arr = bytearray()  # 直接跳过payload
             starter = 0
             # 当payload大于0的时候，
             if len(tcp.data) > 0 and TOTAL_SIZE > cumulative_payload_length:  #
@@ -140,18 +141,34 @@ def main():
                         for packet in record:
                             content = packet[0]  # content内容
                             length = packet[1]  # content占据的长度
+
+                            # 在列表中的字段模糊掉，也就是替换成0x00，
+                            # 1. 模糊包含两种方案： 1.将extension的内容模糊掉，但是type和length属性还存在，这样能够通过wireshark查看，内容是否模糊正确。
+                            #                       2.将extension的所有字段都模糊掉，type和length也模糊掉，此时wireshark将无法正常查看。
+                            #                         区别在于starter+4
+
                             # 若content type在change_content_list中，则进行修改,starter,是该字段在该包的定位。为了防止跨包定位出现错误
-                            if content in change_content_list:
-                                if content in extensions_list:
-                                    # 若是extensions的字段，则筛选内容进行修改即可,content type2, length 2,所以内容从4开始，长度也要减4
-                                    print(content, starter, length, tcp.data[starter:starter + length])
-                                    payload_arr[starter:starter + length] = [0 for i in range(length)]
-                                else:
-                                    print(content, starter, length, tcp.data[starter:starter+length])
-                                    # 修改payload, bytesarray可以替换，tcp.data
-                                    payload_arr[starter:starter+length] = [0 for i in range(length)]
+                            # if content in change_content_list:
+                            #     if content in extensions_list:
+                            #         # **** 若是extensions的字段，则筛选内容进行修改即可,type2, length2,content 。所以内容从4开始，长度也要减4
+                            #         # **** payload_arr[starter+4:starter + length] = [0 for i in range(length-4)]
+                            #         # ****
+                            #         print(content, starter, length, tcp.data[starter:starter + length])
+                            #         payload_arr[starter:starter + length] = [0 for i in range(length)]
+                            #     else:
+                            #         print(content, starter, length, tcp.data[starter:starter+length])
+                            #         # 修改payload, bytesarray可以替换，tcp.data
+                            #         payload_arr[starter:starter+length] = [0 for i in range(length)]
+
+                            # 在列表中的字段则跳过，也就是直接删除掉，所以其他的字段则写入
+                            if content not in change_content_list:
+                                for index in range(length):
+                                    payload_arr.append(tcp.data[starter+index])
                             starter += length
-                cumulative_payload_length += len(tcp.data)
+
+                # cumulative_payload_length += len(tcp.data)  修改payload
+                cumulative_payload_length += len(payload_arr)  # 跳过指定的payload
+
                 # [[[type, length],...,],...,] 多维数组
                 # 看定位的在这个包的，修改该字节对应的字段的数目。然后修改。写入该包。
                 # 当超过784，不用修改，直接把后面的包写入即可。784结束完的多写一包数据即可。不用往后写太多。
@@ -207,5 +224,5 @@ def extract_L7():
 
 
 if __name__ == '__main__':
-    main()
-    # extract_L7()
+    # main()
+    extract_L7()

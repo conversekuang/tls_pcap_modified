@@ -105,15 +105,15 @@ def parse_tls_records(stream):
             tcp_payload_list.append(application_data)
 
     # 没有record，因为是一部分加密信息，针对的PDU那种。因为一整包都是PDU
-    if len(records) == 0 and stream[0] == 23:
+    if len(records) == 0 and stream[0] == 23 and bytes_used > 0:
         # print("Encrypted Application Data", len(stream), stream)
         tcp_payload_list.append([["TCP segment Data", len(stream)]])
 
     # 有读出来有record但是没有读取完，剩下的是segment。如果消耗的字节和payload大小不一致，一包里面一部分是PDU
-    if len(records) > 0 and len(stream) - bytes_used > 0:
+    elif len(records) > 0 and len(stream) - bytes_used > 0:
         tcp_payload_list.append([["TCP segment Data", len(stream) - bytes_used]])
 
-    if len(records) == 0 and bytes_used == 0:
+    elif len(records) == 0 and bytes_used == 0:
         tcp_payload_list.append([["TCP segment Data", len(stream)]])
 
     return tcp_payload_list

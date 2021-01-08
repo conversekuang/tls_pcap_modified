@@ -49,7 +49,7 @@ def main():
         "qq": {}
     }
 
-    srcbasepath = r"D:\sharing_F\test_data\non-vpn"
+    srcbasepath = r"D:\sharing_F\test_data\test"
     src_pcap_files = show_files(srcbasepath, [])
     qq_count = 0
     baidu_count = 0
